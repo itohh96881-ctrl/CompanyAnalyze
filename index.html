@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>企業分析クリップ</title>
+    <title>企業分析クリップ v1.1</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -14,7 +14,6 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        /* 数値入力のスピンボタンを消す */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
@@ -31,6 +30,7 @@
                 <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
                     企業分析クリップ
                 </h1>
+                <span class="text-xs font-mono text-indigo-400 border border-indigo-100 bg-indigo-50 px-1.5 py-0.5 rounded ml-1">v1.1</span>
             </div>
             <div class="flex items-center gap-2">
                 <input type="file" id="importFile" class="hidden" accept=".json">
@@ -246,6 +246,55 @@
             }
         }
 
+        // --- Metric Evaluation Logic ---
+        function evaluateMetric(type, value) {
+            const num = parseFloat(value);
+            if (isNaN(num)) return null;
+
+            switch(type) {
+                case 'per':
+                    if (num <= 15) return { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' };
+                    if (num >= 25) return { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' };
+                    return null;
+                case 'pbr':
+                    if (num < 1.0) return { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' };
+                    if (num >= 3.0) return { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' };
+                    return null;
+                case 'yield':
+                    if (num >= 3.5) return { label: '高配当', color: 'text-green-600 bg-green-50 border-green-100' };
+                    return null;
+                case 'roe':
+                    if (num >= 10) return { label: '高収益', color: 'text-purple-600 bg-purple-50 border-purple-100' };
+                    return null;
+                case 'equity':
+                    if (num >= 50) return { label: '安全', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' };
+                    if (num <= 20) return { label: '注意', color: 'text-orange-600 bg-orange-50 border-orange-100' };
+                    return null;
+                default:
+                    return null;
+            }
+        }
+
+        function renderMetricItem(label, value, type, suffix = '') {
+            const valStr = value ? value + suffix : '-';
+            const evalResult = evaluateMetric(type, value);
+            
+            let badge = '';
+            if (evalResult) {
+                badge = `<span class="ml-1 text-[9px] px-1 rounded border ${evalResult.color}">${evalResult.label}</span>`;
+            }
+
+            return `
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">${label}:</span> 
+                    <div class="flex items-center">
+                        <span class="font-mono font-bold text-slate-700">${valStr}</span>
+                        ${badge}
+                    </div>
+                </div>
+            `;
+        }
+
         function renderList() {
             const container = document.getElementById('listContainer');
             const emptyState = document.getElementById('emptyState');
@@ -270,13 +319,17 @@
                     const starsHtml = renderStarsStatic(a.rating);
                     const htmlBadge = a.htmlContent ? `<i data-lucide="code" class="w-3 h-3 text-indigo-400"></i>` : '';
                     
-                    // 指標の表示用HTML生成
+                    // 指標データ生成
                     const m = a.metrics || {};
                     const metricsHtml = `
-                        <div class="grid grid-cols-3 gap-x-4 gap-y-1 text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded-lg">
-                            <div class="flex justify-between"><span>PER:</span> <span class="font-mono font-bold text-slate-700">${m.per || '-'}</span></div>
-                            <div class="flex justify-between"><span>PBR:</span> <span class="font-mono font-bold text-slate-700">${m.pbr || '-'}</span></div>
-                            <div class="flex justify-between"><span>利回り:</span> <span class="font-mono font-bold text-slate-700">${m.yield ? m.yield + '%' : '-'}</span></div>
+                        <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mt-2 bg-slate-50 p-2 rounded-lg">
+                            ${renderMetricItem('PER', m.per, 'per')}
+                            ${renderMetricItem('PBR', m.pbr, 'pbr')}
+                            ${renderMetricItem('利回り', m.yield, 'yield', '%')}
+                            ${renderMetricItem('ROE', m.roe, 'roe', '%')}
+                            <div class="col-span-2">
+                                ${renderMetricItem('自己資本比率', m.equity, 'equity', '%')}
+                            </div>
                         </div>
                     `;
 
@@ -285,7 +338,7 @@
                             <div class="flex flex-col items-center justify-center min-w-[60px] text-center">
                                 <span class="text-lg font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">${a.code}</span>
                             </div>
-                            <div class="min-w-0">
+                            <div class="min-w-0 flex-1">
                                 <h3 class="text-lg font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors flex items-center gap-2">
                                     ${a.name} ${htmlBadge}
                                 </h3>
