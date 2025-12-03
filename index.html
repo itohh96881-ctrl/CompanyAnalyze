@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>企業分析クリップ v1.3</title>
+    <title>企業分析クリップ v1.6</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -16,6 +16,7 @@
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
         /* Audio Player Styling */
         audio { width: 100%; height: 32px; margin-top: 8px; }
         audio::-webkit-media-controls-panel { background-color: #f8fafc; }
@@ -33,7 +34,7 @@
                 <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
                     企業分析クリップ
                 </h1>
-                <span class="text-xs font-mono text-indigo-400 border border-indigo-100 bg-indigo-50 px-1.5 py-0.5 rounded ml-1">v1.3</span>
+                <span class="text-xs font-mono text-indigo-400 border border-indigo-100 bg-indigo-50 px-1.5 py-0.5 rounded ml-1">v1.6</span>
             </div>
             <div class="flex items-center gap-2">
                 <input type="file" id="importFile" class="hidden" accept=".json">
@@ -141,27 +142,21 @@
                     <!-- Audio File Section -->
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
-                            <i data-lucide="mic" class="w-3 h-3"></i> 音声ファイル登録
+                            <i data-lucide="mic" class="w-3 h-3"></i> 音声ファイル
                         </label>
                         <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
                             <input type="text" id="inputPodcastTitle" class="w-full text-xs px-2 py-1.5 rounded border border-slate-200 focus:border-indigo-500 outline-none mb-1" placeholder="メモ: 2024Q3決算ポッドキャストなど">
-                            
                             <div class="flex items-center gap-2">
                                 <label class="flex-1 flex items-center justify-center px-3 py-2 bg-slate-50 border border-slate-300 border-dashed rounded cursor-pointer hover:bg-slate-100 transition-colors">
                                     <div class="flex items-center gap-2 text-slate-500 text-xs">
                                         <i data-lucide="file-audio" class="w-4 h-4"></i>
-                                        <span id="audioFileName">ファイルを選択 (MP3等)</span>
+                                        <span id="audioFileName">音声ファイルを選択</span>
                                     </div>
                                     <input type="file" id="inputAudioFile" class="hidden" accept="audio/*">
                                 </label>
-                                <button onclick="deleteCurrentAudio()" id="deleteAudioBtn" class="hidden p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded" title="音声ファイルを削除">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
+                                <button onclick="deleteCurrentAudio()" id="deleteAudioBtn" class="hidden p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded" title="音声ファイルを削除"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                             </div>
-
-                            <!-- Audio Player -->
                             <audio id="audioPlayer" controls class="hidden w-full"></audio>
-                            <p class="text-[10px] text-slate-400">※音声ファイルはこのブラウザ内に保存されます。エクスポートには含まれません。</p>
                         </div>
                     </div>
 
@@ -177,31 +172,41 @@
                         <textarea id="inputMemo" class="w-full h-20 px-3 py-2 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white text-sm resize-none" placeholder="気になった点や将来の予測など..."></textarea>
                     </div>
 
+                    <!-- HTML Input -->
                     <div>
                         <div class="flex justify-between items-center mb-2">
-                            <label class="block text-xs font-bold text-slate-400 uppercase">HTML資料 (任意)</label>
+                            <label class="block text-xs font-bold text-slate-400 uppercase">HTML資料 (JS実行可)</label>
                             <button onclick="togglePreview()" class="text-xs flex items-center gap-1 text-indigo-600 hover:text-indigo-800">
                                 <i id="previewIcon" data-lucide="eye" class="w-3 h-3"></i>
                                 <span id="previewText">プレビュー中</span>
                             </button>
                         </div>
-                        <textarea id="inputHtml" oninput="updatePreview()" class="w-full h-40 px-3 py-2 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white font-mono text-xs resize-y" placeholder="<div class='chart'>...</div>"></textarea>
+                        <p class="text-[10px] text-slate-400 mb-2">
+                            HTML全体を貼り付けてください。グラフ描画スクリプトも動作します。
+                        </p>
+                        <textarea id="inputHtml" oninput="updatePreview()" class="w-full h-40 px-3 py-2 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white font-mono text-xs resize-y" placeholder="<html>...</html>"></textarea>
                     </div>
                 </div>
 
                 <!-- Right Panel: Preview -->
-                <div class="flex-1 bg-white overflow-hidden flex flex-col relative">
+                <div class="flex-1 bg-white overflow-hidden flex flex-col relative border-l border-slate-100">
                     <div class="bg-slate-100 px-4 py-2 border-b flex items-center justify-between">
                         <span class="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                            <i data-lucide="external-link" class="w-3 h-3"></i> プレビューエリア
+                            <i data-lucide="layout" class="w-3 h-3"></i> プレビュー
                         </span>
                     </div>
                     
-                    <div id="previewContainer" class="flex-1 overflow-auto p-4 prose max-w-none"></div>
-                    
-                    <div id="previewPlaceholder" class="h-full flex flex-col items-center justify-center text-slate-300">
-                        <i data-lucide="code" class="w-12 h-12 mb-4 opacity-50"></i>
-                        <p class="text-center text-sm">HTMLコードを貼り付けると<br>ここに表示されます</p>
+                    <div id="previewContainer" class="flex-1 overflow-hidden relative bg-slate-50">
+                        <!-- Iframe Preview Container (Sandboxed but script enabled) -->
+                        <iframe id="htmlPreviewFrame" class="w-full h-full border-none bg-white" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+
+                         <!-- Placeholder -->
+                        <div id="previewPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 z-10 pointer-events-none">
+                            <i data-lucide="code" class="w-12 h-12 mb-4 opacity-50"></i>
+                            <p class="text-center text-sm">
+                                HTMLコードを貼り付けると<br>ここに表示されます
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -210,10 +215,10 @@
 
     <!-- JavaScript Logic -->
     <script>
-        // --- IndexedDB Wrapper for Large Audio Files ---
-        const DB_NAME = 'StockClipAudioDB';
-        const DB_VERSION = 1;
-        const STORE_NAME = 'audios';
+        // --- IndexedDB Wrapper for Media (Audio only) ---
+        const DB_NAME = 'StockClipMediaDB';
+        const DB_VERSION = 2; 
+        const STORE_NAME = 'media';
 
         const dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -227,7 +232,7 @@
             request.onerror = (e) => reject(e);
         });
 
-        async function saveAudioFile(id, file) {
+        async function saveMediaFile(id, file) {
             const db = await dbPromise;
             return new Promise((resolve, reject) => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -238,7 +243,7 @@
             });
         }
 
-        async function getAudioFile(id) {
+        async function getMediaFile(id) {
             const db = await dbPromise;
             return new Promise((resolve, reject) => {
                 const tx = db.transaction(STORE_NAME, 'readonly');
@@ -249,7 +254,7 @@
             });
         }
 
-        async function deleteAudioFile(id) {
+        async function deleteMediaFile(id) {
             const db = await dbPromise;
             return new Promise((resolve, reject) => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -265,15 +270,14 @@
         let editingId = null;
         let currentRating = 3;
         let showPreview = true;
-        let pendingAudioFile = null; // To store selected file before saving
-        let hasAudioSaved = false;   // State tracker
+        
+        let pendingAudioFile = null;
+        let hasAudioSaved = false;
 
         window.addEventListener('DOMContentLoaded', () => {
             loadData();
             lucide.createIcons();
             document.getElementById('importFile').addEventListener('change', handleImport);
-            
-            // Audio input listener
             document.getElementById('inputAudioFile').addEventListener('change', handleAudioSelect);
         });
 
@@ -288,14 +292,13 @@
             renderList();
         }
 
+        // --- Audio Handling ---
         function handleAudioSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             pendingAudioFile = file;
-            hasAudioSaved = true; // Will be saved on save
+            hasAudioSaved = true;
             
-            // Update UI
             document.getElementById('audioFileName').textContent = file.name;
             const player = document.getElementById('audioPlayer');
             player.src = URL.createObjectURL(file);
@@ -304,26 +307,23 @@
         }
 
         async function deleteCurrentAudio() {
-            if(!confirm('音声ファイルを削除しますか？')) return;
-            
+            if(!confirm('音声を削除しますか？')) return;
             document.getElementById('inputAudioFile').value = '';
-            document.getElementById('audioFileName').textContent = 'ファイルを選択 (MP3等)';
+            document.getElementById('audioFileName').textContent = '音声ファイルを選択';
             document.getElementById('audioPlayer').src = '';
             document.getElementById('audioPlayer').classList.add('hidden');
             document.getElementById('deleteAudioBtn').classList.add('hidden');
-            
             pendingAudioFile = null;
             hasAudioSaved = false;
 
             if (editingId) {
-                // Remove from DB immediately if editing
-                await deleteAudioFile(editingId);
-                // Update local list state
+                await deleteMediaFile(editingId + '_audio');
                 const item = analyses.find(a => a.id === editingId);
                 if(item) item.hasAudio = false;
             }
         }
 
+        // --- Save Logic ---
         async function saveData() {
             const code = document.getElementById('inputCode').value.trim();
             const name = document.getElementById('inputName').value.trim();
@@ -335,14 +335,8 @@
 
             const newId = editingId || (Date.now().toString() + Math.random().toString(36).substring(2));
             
-            // Save Audio to IndexedDB if exists
             if (pendingAudioFile) {
-                try {
-                    await saveAudioFile(newId, pendingAudioFile);
-                } catch(e) {
-                    alert('音声ファイルの保存に失敗しました');
-                    console.error(e);
-                }
+                try { await saveMediaFile(newId + '_audio', pendingAudioFile); } catch(e) { console.error(e); }
             }
 
             const newData = {
@@ -359,10 +353,8 @@
                     roe: document.getElementById('inputRoe').value,
                     equity: document.getElementById('inputEquity').value
                 },
-                podcast: {
-                    title: document.getElementById('inputPodcastTitle').value,
-                },
-                hasAudio: hasAudioSaved, // Flag to indicate if audio exists in DB
+                podcast: { title: document.getElementById('inputPodcastTitle').value },
+                hasAudio: hasAudioSaved,
                 updatedAt: new Date().toISOString()
             };
 
@@ -379,112 +371,11 @@
                 localStorage.setItem('stock-clips-local', JSON.stringify(analyses));
                 showList();
             } catch (e) {
-                alert("保存容量の上限に達しました。HTMLの量を減らしてください。");
+                alert("保存容量エラー。HTML量を減らしてください。");
             }
         }
 
-        // --- Metric Evaluation Logic ---
-        function evaluateMetric(type, value) {
-            const num = parseFloat(value);
-            if (isNaN(num)) return null;
-            switch(type) {
-                case 'per': return (num <= 15) ? { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' } : (num >= 25 ? { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' } : null);
-                case 'pbr': return (num < 1.0) ? { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' } : (num >= 3.0 ? { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' } : null);
-                case 'yield': return (num >= 3.5) ? { label: '高配当', color: 'text-green-600 bg-green-50 border-green-100' } : null;
-                case 'roe': return (num >= 10) ? { label: '高収益', color: 'text-purple-600 bg-purple-50 border-purple-100' } : null;
-                case 'equity': return (num >= 50) ? { label: '安全', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' } : (num <= 20 ? { label: '注意', color: 'text-orange-600 bg-orange-50 border-orange-100' } : null);
-                default: return null;
-            }
-        }
-
-        function renderMetricItem(label, value, type, suffix = '') {
-            const valStr = value ? value + suffix : '-';
-            const evalResult = evaluateMetric(type, value);
-            const badge = evalResult ? `<span class="ml-1 text-[9px] px-1 rounded border ${evalResult.color}">${evalResult.label}</span>` : '';
-            return `<div class="flex justify-between items-center"><span class="text-slate-500">${label}:</span><div class="flex items-center"><span class="font-mono font-bold text-slate-700">${valStr}</span>${badge}</div></div>`;
-        }
-
-        function renderList() {
-            const container = document.getElementById('listContainer');
-            const emptyState = document.getElementById('emptyState');
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            container.innerHTML = '';
-            
-            const filtered = analyses.filter(a => a.name.toLowerCase().includes(searchTerm) || a.code.includes(searchTerm));
-
-            if (filtered.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                emptyState.classList.add('hidden');
-                filtered.forEach(a => {
-                    const div = document.createElement('div');
-                    div.className = "group bg-white rounded-xl p-4 border border-gray-100 hover:border-indigo-300 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col md:flex-row gap-4";
-                    div.onclick = () => startEdit(a.id);
-                    
-                    const starsHtml = renderStarsStatic(a.rating);
-                    const htmlBadge = a.htmlContent ? `<i data-lucide="code" class="w-3 h-3 text-indigo-400"></i>` : '';
-                    const audioBadge = a.hasAudio ? `<span class="bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1"><i data-lucide="mic" class="w-3 h-3"></i>音声</span>` : '';
-                    const m = a.metrics || {};
-                    
-                    div.innerHTML = `
-                        <div class="flex items-center gap-4 md:w-1/3">
-                            <div class="flex flex-col items-center justify-center min-w-[60px] text-center">
-                                <span class="text-lg font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">${a.code}</span>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <h3 class="text-lg font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors flex items-center gap-2">
-                                    ${a.name} ${htmlBadge} ${audioBadge}
-                                </h3>
-                                <div class="flex gap-0.5 mt-1">${starsHtml}</div>
-                            </div>
-                        </div>
-                        <div class="flex-1 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-4">
-                            <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mt-2 bg-slate-50 p-2 rounded-lg">
-                                ${renderMetricItem('PER', m.per, 'per')}
-                                ${renderMetricItem('PBR', m.pbr, 'pbr')}
-                                ${renderMetricItem('利回り', m.yield, 'yield', '%')}
-                                ${renderMetricItem('ROE', m.roe, 'roe', '%')}
-                                <div class="col-span-2">${renderMetricItem('自己資本比率', m.equity, 'equity', '%')}</div>
-                            </div>
-                            <p class="text-sm text-slate-400 mt-2 line-clamp-1">
-                                ${a.memo ? `<i data-lucide="file-text" class="w-3 h-3 inline mr-1"></i>${a.memo}` : ''}
-                            </p>
-                        </div>
-                        <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="deleteData('${a.id}', event)" class="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-                        </div>
-                    `;
-                    container.appendChild(div);
-                });
-                lucide.createIcons();
-            }
-        }
-
-        // --- Helper Functions ---
-        function renderStarsStatic(rating) {
-            let html = '';
-            for (let i = 1; i <= 5; i++) {
-                const color = i <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300';
-                html += `<svg class="w-4 h-4 ${color}" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>`;
-            }
-            return html;
-        }
-
-        function renderEditStars() {
-            const container = document.getElementById('ratingStars');
-            container.innerHTML = '';
-            for (let i = 1; i <= 5; i++) {
-                const btn = document.createElement('button');
-                btn.type = "button";
-                btn.className = "focus:outline-none hover:scale-110 transition-transform";
-                btn.onclick = () => { currentRating = i; renderEditStars(); };
-                const color = i <= currentRating ? 'text-yellow-400 fill-current' : 'text-gray-300';
-                btn.innerHTML = `<svg class="w-5 h-5 ${color}" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>`;
-                container.appendChild(btn);
-            }
-        }
-
+        // --- Render Logic ---
         async function startEdit(id) {
             const data = analyses.find(a => a.id === id);
             if (!data) return;
@@ -498,38 +389,27 @@
             document.getElementById('inputName').value = data.name;
             document.getElementById('inputMemo').value = data.memo || '';
             document.getElementById('inputHtml').value = data.htmlContent || '';
-            
             const m = data.metrics || {};
-            ['Per','Pbr','Yield','Roe','Equity'].forEach(k => 
-                document.getElementById('input'+k).value = m[k.toLowerCase()] || ''
-            );
-
-            const p = data.podcast || {};
-            document.getElementById('inputPodcastTitle').value = p.title || '';
+            ['Per','Pbr','Yield','Roe','Equity'].forEach(k => document.getElementById('input'+k).value = m[k.toLowerCase()] || '');
+            document.getElementById('inputPodcastTitle').value = (data.podcast || {}).title || '';
             
-            // Audio reset
-            document.getElementById('inputAudioFile').value = '';
-            document.getElementById('audioPlayer').classList.add('hidden');
-            document.getElementById('deleteAudioBtn').classList.add('hidden');
-            document.getElementById('audioFileName').textContent = 'ファイルを選択 (MP3等)';
+            resetMediaUI();
 
-            // Try fetch audio
             if (hasAudioSaved) {
                 try {
-                    const audioBlob = await getAudioFile(id);
-                    if (audioBlob) {
-                        const url = URL.createObjectURL(audioBlob);
-                        const player = document.getElementById('audioPlayer');
-                        player.src = url;
-                        player.classList.remove('hidden');
+                    const blob = await getMediaFile(id + '_audio');
+                    if (blob) {
+                        document.getElementById('audioPlayer').src = URL.createObjectURL(blob);
+                        document.getElementById('audioPlayer').classList.remove('hidden');
                         document.getElementById('deleteAudioBtn').classList.remove('hidden');
                         document.getElementById('audioFileName').textContent = '音声ファイル保存済み';
                     }
-                } catch(e) { console.error(e); }
+                } catch(e) {}
             }
 
             renderEditStars();
-            updatePreview();
+            updatePreview(); 
+            
             document.getElementById('listView').classList.add('hidden');
             document.getElementById('editView').classList.remove('hidden');
             document.getElementById('editView').classList.add('flex');
@@ -549,42 +429,47 @@
             document.getElementById('inputPodcastTitle').value = '';
             ['Per','Pbr','Yield','Roe','Equity'].forEach(k => document.getElementById('input'+k).value = '');
             
-            document.getElementById('inputAudioFile').value = '';
-            document.getElementById('audioPlayer').classList.add('hidden');
-            document.getElementById('deleteAudioBtn').classList.add('hidden');
-            document.getElementById('audioFileName').textContent = 'ファイルを選択 (MP3等)';
-
+            resetMediaUI();
             renderEditStars();
             updatePreview();
+            
             document.getElementById('listView').classList.add('hidden');
             document.getElementById('editView').classList.remove('hidden');
             document.getElementById('editView').classList.add('flex');
         }
 
-        function showList() {
-            document.getElementById('editView').classList.add('hidden');
-            document.getElementById('editView').classList.remove('flex');
-            document.getElementById('listView').classList.remove('hidden');
-            // Clean up object URLs to free memory
+        function resetMediaUI() {
+            document.getElementById('inputAudioFile').value = '';
+            document.getElementById('audioPlayer').classList.add('hidden');
             document.getElementById('audioPlayer').src = '';
-            renderList();
+            document.getElementById('deleteAudioBtn').classList.add('hidden');
+            document.getElementById('audioFileName').textContent = '音声ファイルを選択';
         }
 
+        // --- Common Helpers ---
         function updatePreview() {
             const html = document.getElementById('inputHtml').value;
-            const container = document.getElementById('previewContainer');
+            const iframe = document.getElementById('htmlPreviewFrame');
             const placeholder = document.getElementById('previewPlaceholder');
+            
             if (html && showPreview) {
-                container.innerHTML = html;
-                container.classList.remove('hidden');
+                iframe.classList.remove('hidden');
                 placeholder.classList.add('hidden');
+                
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(html);
+                doc.close();
             } else {
-                container.innerHTML = '';
-                container.classList.add('hidden');
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write('');
+                doc.close();
+                iframe.classList.add('hidden');
                 placeholder.classList.remove('hidden');
             }
         }
-
+        
         function togglePreview() {
             showPreview = !showPreview;
             const icon = document.getElementById('previewIcon');
@@ -599,54 +484,93 @@
             lucide.createIcons();
             updatePreview();
         }
-
-        async function deleteData(id, event) {
-            event.stopPropagation();
-            if(!confirm("このデータを削除してもよろしいですか？")) return;
-            analyses = analyses.filter(a => a.id !== id);
-            localStorage.setItem('stock-clips-local', JSON.stringify(analyses));
-            await deleteAudioFile(id); // Clean up audio DB
+        
+        function showList() {
+            document.getElementById('editView').classList.add('hidden');
+            document.getElementById('editView').classList.remove('flex');
+            document.getElementById('listView').classList.remove('hidden');
+            document.getElementById('audioPlayer').src = '';
             renderList();
         }
 
-        function handleImport(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const imported = JSON.parse(e.target.result);
-                    if (!Array.isArray(imported)) throw new Error;
-                    imported.forEach(item => {
-                        if (!item.id || !item.name) return;
-                        const idx = analyses.findIndex(a => a.id === item.id);
-                        // Reset audio flag for imported items as audio files are not in JSON
-                        item.hasAudio = false; 
-                        if (idx === -1) analyses.push(item);
-                        else analyses[idx] = item;
-                    });
-                    analyses.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
-                    localStorage.setItem('stock-clips-local', JSON.stringify(analyses));
-                    alert("インポートしました（音声ファイルは含まれません）");
-                    renderList();
-                } catch { alert("読み込み失敗"); }
-                event.target.value = '';
-            };
-            reader.readAsText(file);
+        async function deleteData(id, event) {
+            event.stopPropagation();
+            if(!confirm("削除しますか？")) return;
+            analyses = analyses.filter(a => a.id !== id);
+            localStorage.setItem('stock-clips-local', JSON.stringify(analyses));
+            await deleteMediaFile(id + '_audio');
+            renderList();
         }
 
-        function exportData() {
-            // Warn user about missing audio
-            if(!confirm('【注意】音声ファイルはエクスポートに含まれません。テキストデータのみ保存します。続行しますか？')) return;
+        function renderList() {
+            const container = document.getElementById('listContainer');
+            const emptyState = document.getElementById('emptyState');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            container.innerHTML = '';
             
-            const blob = new Blob([JSON.stringify(analyses, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `stock-clips-${new Date().toISOString().slice(0, 10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            const filtered = analyses.filter(a => a.name.toLowerCase().includes(searchTerm) || a.code.includes(searchTerm));
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                filtered.forEach(a => {
+                    const div = document.createElement('div');
+                    div.className = "group bg-white rounded-xl p-4 border border-gray-100 hover:border-indigo-300 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col md:flex-row gap-4";
+                    div.onclick = () => startEdit(a.id);
+                    
+                    const starsHtml = renderStarsStatic(a.rating);
+                    const badges = [];
+                    if (a.htmlContent) badges.push(`<i data-lucide="code" class="w-3 h-3 text-indigo-400"></i>`);
+                    if (a.hasAudio) badges.push(`<i data-lucide="mic" class="w-3 h-3 text-pink-400"></i>`);
+                    
+                    const m = a.metrics || {};
+                    div.innerHTML = `
+                        <div class="flex items-center gap-4 md:w-1/3">
+                            <div class="flex flex-col items-center justify-center min-w-[60px] text-center">
+                                <span class="text-lg font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">${a.code}</span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h3 class="text-lg font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors flex items-center gap-2">
+                                    ${a.name} <div class="flex gap-1 bg-slate-50 px-1 rounded">${badges.join('')}</div>
+                                </h3>
+                                <div class="flex gap-0.5 mt-1">${starsHtml}</div>
+                            </div>
+                        </div>
+                        <div class="flex-1 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-4">
+                             <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mt-2 bg-slate-50 p-2 rounded-lg">
+                                ${renderMetricItem('PER', m.per, 'per')}
+                                ${renderMetricItem('PBR', m.pbr, 'pbr')}
+                                ${renderMetricItem('利回り', m.yield, 'yield', '%')}
+                                ${renderMetricItem('ROE', m.roe, 'roe', '%')}
+                                <div class="col-span-2">${renderMetricItem('自己資本', m.equity, 'equity', '%')}</div>
+                            </div>
+                            <p class="text-sm text-slate-400 mt-2 line-clamp-1">${a.memo || ''}</p>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+                lucide.createIcons();
+            }
+        }
+        
+        function evaluateMetric(type, value) {
+            const num = parseFloat(value);
+            if (isNaN(num)) return null;
+            switch(type) {
+                case 'per': return (num <= 15) ? { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' } : (num >= 25 ? { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' } : null);
+                case 'pbr': return (num < 1.0) ? { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' } : (num >= 3.0 ? { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' } : null);
+                case 'yield': return (num >= 3.5) ? { label: '高配当', color: 'text-green-600 bg-green-50 border-green-100' } : null;
+                case 'roe': return (num >= 10) ? { label: '高収益', color: 'text-purple-600 bg-purple-50 border-purple-100' } : null;
+                case 'equity': return (num >= 50) ? { label: '安全', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' } : (num <= 20 ? { label: '注意', color: 'text-orange-600 bg-orange-50 border-orange-100' } : null);
+                default: return null;
+            }
+        }
+
+        function renderMetricItem(label, value, type, suffix = '') {
+            const valStr = value ? value + suffix : '-';
+            const evalResult = evaluateMetric(type, value);
+            const badge = evalResult ? `<span class="ml-1 text-[9px] px-1 rounded border ${evalResult.color}">${evalResult.label}</span>` : '';
+            return `<div class="flex justify-between items-center"><span class="text-slate-500">${label}:</span><div class="flex items-center"><span class="font-mono font-bold text-slate-700">${valStr}</span>${badge}</div></div>`;
         }
     </script>
 </body>
