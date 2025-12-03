@@ -572,6 +572,42 @@
             const badge = evalResult ? `<span class="ml-1 text-[9px] px-1 rounded border ${evalResult.color}">${evalResult.label}</span>` : '';
             return `<div class="flex justify-between items-center"><span class="text-slate-500">${label}:</span><div class="flex items-center"><span class="font-mono font-bold text-slate-700">${valStr}</span>${badge}</div></div>`;
         }
+
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!Array.isArray(imported)) throw new Error;
+                    imported.forEach(item => {
+                        if (!item.id || !item.name) return;
+                        const idx = analyses.findIndex(a => a.id === item.id);
+                        if (idx === -1) analyses.push(item);
+                        else analyses[idx] = item;
+                    });
+                    analyses.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+                    localStorage.setItem('stock-clips-local', JSON.stringify(analyses));
+                    alert("インポートしました");
+                    renderList();
+                } catch { alert("読み込み失敗"); }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function exportData() {
+            if(!confirm('【注意】音声ファイルはエクスポートに含まれません。テキストデータのみ保存します。続行しますか？')) return;
+            const blob = new Blob([JSON.stringify(analyses, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `stock-clips-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
     </script>
 </body>
 </html>
