@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>企業分析クリップ v1.1</title>
+    <title>企業分析クリップ v1.3</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -16,6 +16,9 @@
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        /* Audio Player Styling */
+        audio { width: 100%; height: 32px; margin-top: 8px; }
+        audio::-webkit-media-controls-panel { background-color: #f8fafc; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
@@ -30,7 +33,7 @@
                 <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
                     企業分析クリップ
                 </h1>
-                <span class="text-xs font-mono text-indigo-400 border border-indigo-100 bg-indigo-50 px-1.5 py-0.5 rounded ml-1">v1.1</span>
+                <span class="text-xs font-mono text-indigo-400 border border-indigo-100 bg-indigo-50 px-1.5 py-0.5 rounded ml-1">v1.3</span>
             </div>
             <div class="flex items-center gap-2">
                 <input type="file" id="importFile" class="hidden" accept=".json">
@@ -135,6 +138,33 @@
                         </div>
                     </div>
 
+                    <!-- Audio File Section -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
+                            <i data-lucide="mic" class="w-3 h-3"></i> 音声ファイル登録
+                        </label>
+                        <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                            <input type="text" id="inputPodcastTitle" class="w-full text-xs px-2 py-1.5 rounded border border-slate-200 focus:border-indigo-500 outline-none mb-1" placeholder="メモ: 2024Q3決算ポッドキャストなど">
+                            
+                            <div class="flex items-center gap-2">
+                                <label class="flex-1 flex items-center justify-center px-3 py-2 bg-slate-50 border border-slate-300 border-dashed rounded cursor-pointer hover:bg-slate-100 transition-colors">
+                                    <div class="flex items-center gap-2 text-slate-500 text-xs">
+                                        <i data-lucide="file-audio" class="w-4 h-4"></i>
+                                        <span id="audioFileName">ファイルを選択 (MP3等)</span>
+                                    </div>
+                                    <input type="file" id="inputAudioFile" class="hidden" accept="audio/*">
+                                </label>
+                                <button onclick="deleteCurrentAudio()" id="deleteAudioBtn" class="hidden p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded" title="音声ファイルを削除">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+
+                            <!-- Audio Player -->
+                            <audio id="audioPlayer" controls class="hidden w-full"></audio>
+                            <p class="text-[10px] text-slate-400">※音声ファイルはこのブラウザ内に保存されます。エクスポートには含まれません。</p>
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-2">評価</label>
                         <div class="bg-white p-2 rounded-lg border border-slate-200 inline-block">
@@ -180,15 +210,71 @@
 
     <!-- JavaScript Logic -->
     <script>
+        // --- IndexedDB Wrapper for Large Audio Files ---
+        const DB_NAME = 'StockClipAudioDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'audios';
+
+        const dbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = (e) => reject(e);
+        });
+
+        async function saveAudioFile(id, file) {
+            const db = await dbPromise;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.put(file, id);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function getAudioFile(id) {
+            const db = await dbPromise;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.get(id);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function deleteAudioFile(id) {
+            const db = await dbPromise;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.delete(id);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        // --- App Logic ---
         let analyses = [];
         let editingId = null;
         let currentRating = 3;
         let showPreview = true;
+        let pendingAudioFile = null; // To store selected file before saving
+        let hasAudioSaved = false;   // State tracker
 
         window.addEventListener('DOMContentLoaded', () => {
             loadData();
             lucide.createIcons();
             document.getElementById('importFile').addEventListener('change', handleImport);
+            
+            // Audio input listener
+            document.getElementById('inputAudioFile').addEventListener('change', handleAudioSelect);
         });
 
         function loadData() {
@@ -202,7 +288,43 @@
             renderList();
         }
 
-        function saveData() {
+        function handleAudioSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            pendingAudioFile = file;
+            hasAudioSaved = true; // Will be saved on save
+            
+            // Update UI
+            document.getElementById('audioFileName').textContent = file.name;
+            const player = document.getElementById('audioPlayer');
+            player.src = URL.createObjectURL(file);
+            player.classList.remove('hidden');
+            document.getElementById('deleteAudioBtn').classList.remove('hidden');
+        }
+
+        async function deleteCurrentAudio() {
+            if(!confirm('音声ファイルを削除しますか？')) return;
+            
+            document.getElementById('inputAudioFile').value = '';
+            document.getElementById('audioFileName').textContent = 'ファイルを選択 (MP3等)';
+            document.getElementById('audioPlayer').src = '';
+            document.getElementById('audioPlayer').classList.add('hidden');
+            document.getElementById('deleteAudioBtn').classList.add('hidden');
+            
+            pendingAudioFile = null;
+            hasAudioSaved = false;
+
+            if (editingId) {
+                // Remove from DB immediately if editing
+                await deleteAudioFile(editingId);
+                // Update local list state
+                const item = analyses.find(a => a.id === editingId);
+                if(item) item.hasAudio = false;
+            }
+        }
+
+        async function saveData() {
             const code = document.getElementById('inputCode').value.trim();
             const name = document.getElementById('inputName').value.trim();
             
@@ -211,14 +333,25 @@
                 return;
             }
 
+            const newId = editingId || (Date.now().toString() + Math.random().toString(36).substring(2));
+            
+            // Save Audio to IndexedDB if exists
+            if (pendingAudioFile) {
+                try {
+                    await saveAudioFile(newId, pendingAudioFile);
+                } catch(e) {
+                    alert('音声ファイルの保存に失敗しました');
+                    console.error(e);
+                }
+            }
+
             const newData = {
-                id: editingId || crypto.randomUUID(),
+                id: newId,
                 code,
                 name,
                 rating: currentRating,
                 memo: document.getElementById('inputMemo').value,
                 htmlContent: document.getElementById('inputHtml').value,
-                // 指標データ
                 metrics: {
                     per: document.getElementById('inputPer').value,
                     pbr: document.getElementById('inputPbr').value,
@@ -226,6 +359,10 @@
                     roe: document.getElementById('inputRoe').value,
                     equity: document.getElementById('inputEquity').value
                 },
+                podcast: {
+                    title: document.getElementById('inputPodcastTitle').value,
+                },
+                hasAudio: hasAudioSaved, // Flag to indicate if audio exists in DB
                 updatedAt: new Date().toISOString()
             };
 
@@ -250,62 +387,30 @@
         function evaluateMetric(type, value) {
             const num = parseFloat(value);
             if (isNaN(num)) return null;
-
             switch(type) {
-                case 'per':
-                    if (num <= 15) return { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' };
-                    if (num >= 25) return { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' };
-                    return null;
-                case 'pbr':
-                    if (num < 1.0) return { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' };
-                    if (num >= 3.0) return { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' };
-                    return null;
-                case 'yield':
-                    if (num >= 3.5) return { label: '高配当', color: 'text-green-600 bg-green-50 border-green-100' };
-                    return null;
-                case 'roe':
-                    if (num >= 10) return { label: '高収益', color: 'text-purple-600 bg-purple-50 border-purple-100' };
-                    return null;
-                case 'equity':
-                    if (num >= 50) return { label: '安全', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' };
-                    if (num <= 20) return { label: '注意', color: 'text-orange-600 bg-orange-50 border-orange-100' };
-                    return null;
-                default:
-                    return null;
+                case 'per': return (num <= 15) ? { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' } : (num >= 25 ? { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' } : null);
+                case 'pbr': return (num < 1.0) ? { label: '割安', color: 'text-blue-600 bg-blue-50 border-blue-100' } : (num >= 3.0 ? { label: '割高', color: 'text-red-600 bg-red-50 border-red-100' } : null);
+                case 'yield': return (num >= 3.5) ? { label: '高配当', color: 'text-green-600 bg-green-50 border-green-100' } : null;
+                case 'roe': return (num >= 10) ? { label: '高収益', color: 'text-purple-600 bg-purple-50 border-purple-100' } : null;
+                case 'equity': return (num >= 50) ? { label: '安全', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' } : (num <= 20 ? { label: '注意', color: 'text-orange-600 bg-orange-50 border-orange-100' } : null);
+                default: return null;
             }
         }
 
         function renderMetricItem(label, value, type, suffix = '') {
             const valStr = value ? value + suffix : '-';
             const evalResult = evaluateMetric(type, value);
-            
-            let badge = '';
-            if (evalResult) {
-                badge = `<span class="ml-1 text-[9px] px-1 rounded border ${evalResult.color}">${evalResult.label}</span>`;
-            }
-
-            return `
-                <div class="flex justify-between items-center">
-                    <span class="text-slate-500">${label}:</span> 
-                    <div class="flex items-center">
-                        <span class="font-mono font-bold text-slate-700">${valStr}</span>
-                        ${badge}
-                    </div>
-                </div>
-            `;
+            const badge = evalResult ? `<span class="ml-1 text-[9px] px-1 rounded border ${evalResult.color}">${evalResult.label}</span>` : '';
+            return `<div class="flex justify-between items-center"><span class="text-slate-500">${label}:</span><div class="flex items-center"><span class="font-mono font-bold text-slate-700">${valStr}</span>${badge}</div></div>`;
         }
 
         function renderList() {
             const container = document.getElementById('listContainer');
             const emptyState = document.getElementById('emptyState');
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            
             container.innerHTML = '';
             
-            const filtered = analyses.filter(a => 
-                a.name.toLowerCase().includes(searchTerm) || 
-                a.code.includes(searchTerm)
-            );
+            const filtered = analyses.filter(a => a.name.toLowerCase().includes(searchTerm) || a.code.includes(searchTerm));
 
             if (filtered.length === 0) {
                 emptyState.classList.remove('hidden');
@@ -318,21 +423,9 @@
                     
                     const starsHtml = renderStarsStatic(a.rating);
                     const htmlBadge = a.htmlContent ? `<i data-lucide="code" class="w-3 h-3 text-indigo-400"></i>` : '';
-                    
-                    // 指標データ生成
+                    const audioBadge = a.hasAudio ? `<span class="bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1"><i data-lucide="mic" class="w-3 h-3"></i>音声</span>` : '';
                     const m = a.metrics || {};
-                    const metricsHtml = `
-                        <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mt-2 bg-slate-50 p-2 rounded-lg">
-                            ${renderMetricItem('PER', m.per, 'per')}
-                            ${renderMetricItem('PBR', m.pbr, 'pbr')}
-                            ${renderMetricItem('利回り', m.yield, 'yield', '%')}
-                            ${renderMetricItem('ROE', m.roe, 'roe', '%')}
-                            <div class="col-span-2">
-                                ${renderMetricItem('自己資本比率', m.equity, 'equity', '%')}
-                            </div>
-                        </div>
-                    `;
-
+                    
                     div.innerHTML = `
                         <div class="flex items-center gap-4 md:w-1/3">
                             <div class="flex flex-col items-center justify-center min-w-[60px] text-center">
@@ -340,23 +433,25 @@
                             </div>
                             <div class="min-w-0 flex-1">
                                 <h3 class="text-lg font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors flex items-center gap-2">
-                                    ${a.name} ${htmlBadge}
+                                    ${a.name} ${htmlBadge} ${audioBadge}
                                 </h3>
                                 <div class="flex gap-0.5 mt-1">${starsHtml}</div>
                             </div>
                         </div>
-
                         <div class="flex-1 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-4">
-                            ${metricsHtml}
+                            <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mt-2 bg-slate-50 p-2 rounded-lg">
+                                ${renderMetricItem('PER', m.per, 'per')}
+                                ${renderMetricItem('PBR', m.pbr, 'pbr')}
+                                ${renderMetricItem('利回り', m.yield, 'yield', '%')}
+                                ${renderMetricItem('ROE', m.roe, 'roe', '%')}
+                                <div class="col-span-2">${renderMetricItem('自己資本比率', m.equity, 'equity', '%')}</div>
+                            </div>
                             <p class="text-sm text-slate-400 mt-2 line-clamp-1">
                                 ${a.memo ? `<i data-lucide="file-text" class="w-3 h-3 inline mr-1"></i>${a.memo}` : ''}
                             </p>
                         </div>
-                        
                         <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="deleteData('${a.id}', event)" class="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
+                            <button onclick="deleteData('${a.id}', event)" class="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                             <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
                         </div>
                     `;
@@ -390,31 +485,14 @@
             }
         }
 
-        function startNew() {
-            editingId = null;
-            currentRating = 3;
-            document.getElementById('editModeTitle').innerText = '新規クリップ';
-            document.getElementById('inputCode').value = '';
-            document.getElementById('inputName').value = '';
-            document.getElementById('inputMemo').value = '';
-            document.getElementById('inputHtml').value = '';
-            // Metrics reset
-            ['Per','Pbr','Yield','Roe','Equity'].forEach(id => document.getElementById('input'+id).value = '');
-            
-            renderEditStars();
-            updatePreview();
-            
-            document.getElementById('listView').classList.add('hidden');
-            document.getElementById('editView').classList.remove('hidden');
-            document.getElementById('editView').classList.add('flex');
-        }
-
-        function startEdit(id) {
+        async function startEdit(id) {
             const data = analyses.find(a => a.id === id);
             if (!data) return;
-
             editingId = id;
             currentRating = data.rating;
+            pendingAudioFile = null;
+            hasAudioSaved = data.hasAudio || false;
+
             document.getElementById('editModeTitle').innerText = '編集モード';
             document.getElementById('inputCode').value = data.code;
             document.getElementById('inputName').value = data.name;
@@ -422,15 +500,62 @@
             document.getElementById('inputHtml').value = data.htmlContent || '';
             
             const m = data.metrics || {};
-            document.getElementById('inputPer').value = m.per || '';
-            document.getElementById('inputPbr').value = m.pbr || '';
-            document.getElementById('inputYield').value = m.yield || '';
-            document.getElementById('inputRoe').value = m.roe || '';
-            document.getElementById('inputEquity').value = m.equity || '';
+            ['Per','Pbr','Yield','Roe','Equity'].forEach(k => 
+                document.getElementById('input'+k).value = m[k.toLowerCase()] || ''
+            );
+
+            const p = data.podcast || {};
+            document.getElementById('inputPodcastTitle').value = p.title || '';
+            
+            // Audio reset
+            document.getElementById('inputAudioFile').value = '';
+            document.getElementById('audioPlayer').classList.add('hidden');
+            document.getElementById('deleteAudioBtn').classList.add('hidden');
+            document.getElementById('audioFileName').textContent = 'ファイルを選択 (MP3等)';
+
+            // Try fetch audio
+            if (hasAudioSaved) {
+                try {
+                    const audioBlob = await getAudioFile(id);
+                    if (audioBlob) {
+                        const url = URL.createObjectURL(audioBlob);
+                        const player = document.getElementById('audioPlayer');
+                        player.src = url;
+                        player.classList.remove('hidden');
+                        document.getElementById('deleteAudioBtn').classList.remove('hidden');
+                        document.getElementById('audioFileName').textContent = '音声ファイル保存済み';
+                    }
+                } catch(e) { console.error(e); }
+            }
 
             renderEditStars();
             updatePreview();
+            document.getElementById('listView').classList.add('hidden');
+            document.getElementById('editView').classList.remove('hidden');
+            document.getElementById('editView').classList.add('flex');
+        }
 
+        function startNew() {
+            editingId = null;
+            currentRating = 3;
+            pendingAudioFile = null;
+            hasAudioSaved = false;
+
+            document.getElementById('editModeTitle').innerText = '新規クリップ';
+            document.getElementById('inputCode').value = '';
+            document.getElementById('inputName').value = '';
+            document.getElementById('inputMemo').value = '';
+            document.getElementById('inputHtml').value = '';
+            document.getElementById('inputPodcastTitle').value = '';
+            ['Per','Pbr','Yield','Roe','Equity'].forEach(k => document.getElementById('input'+k).value = '');
+            
+            document.getElementById('inputAudioFile').value = '';
+            document.getElementById('audioPlayer').classList.add('hidden');
+            document.getElementById('deleteAudioBtn').classList.add('hidden');
+            document.getElementById('audioFileName').textContent = 'ファイルを選択 (MP3等)';
+
+            renderEditStars();
+            updatePreview();
             document.getElementById('listView').classList.add('hidden');
             document.getElementById('editView').classList.remove('hidden');
             document.getElementById('editView').classList.add('flex');
@@ -440,6 +565,8 @@
             document.getElementById('editView').classList.add('hidden');
             document.getElementById('editView').classList.remove('flex');
             document.getElementById('listView').classList.remove('hidden');
+            // Clean up object URLs to free memory
+            document.getElementById('audioPlayer').src = '';
             renderList();
         }
 
@@ -447,9 +574,6 @@
             const html = document.getElementById('inputHtml').value;
             const container = document.getElementById('previewContainer');
             const placeholder = document.getElementById('previewPlaceholder');
-            const icon = document.getElementById('previewIcon');
-            const text = document.getElementById('previewText');
-
             if (html && showPreview) {
                 container.innerHTML = html;
                 container.classList.remove('hidden');
@@ -476,11 +600,12 @@
             updatePreview();
         }
 
-        function deleteData(id, event) {
+        async function deleteData(id, event) {
             event.stopPropagation();
             if(!confirm("このデータを削除してもよろしいですか？")) return;
             analyses = analyses.filter(a => a.id !== id);
             localStorage.setItem('stock-clips-local', JSON.stringify(analyses));
+            await deleteAudioFile(id); // Clean up audio DB
             renderList();
         }
 
@@ -495,12 +620,14 @@
                     imported.forEach(item => {
                         if (!item.id || !item.name) return;
                         const idx = analyses.findIndex(a => a.id === item.id);
+                        // Reset audio flag for imported items as audio files are not in JSON
+                        item.hasAudio = false; 
                         if (idx === -1) analyses.push(item);
                         else analyses[idx] = item;
                     });
                     analyses.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
                     localStorage.setItem('stock-clips-local', JSON.stringify(analyses));
-                    alert("インポートしました");
+                    alert("インポートしました（音声ファイルは含まれません）");
                     renderList();
                 } catch { alert("読み込み失敗"); }
                 event.target.value = '';
@@ -509,6 +636,9 @@
         }
 
         function exportData() {
+            // Warn user about missing audio
+            if(!confirm('【注意】音声ファイルはエクスポートに含まれません。テキストデータのみ保存します。続行しますか？')) return;
+            
             const blob = new Blob([JSON.stringify(analyses, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
